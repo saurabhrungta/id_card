@@ -196,10 +196,6 @@
     </div>
 </div>
 
-<div class="update-bar" id="updateBar" style="display:none;">
-    <input type="text" id="dataInput" placeholder="Paste tally data here...">
-    <button onclick="loadData()">Update</button>
-</div>
 <div class="last-update" id="lastUpdate"></div>
 
 <div id="resultsList" class="results-list"></div>
@@ -241,51 +237,40 @@ const CANDIDATES = [
 
 let currentVotes = null;
 let currentBallots = 0;
+let blobId = '';
+let refreshTimer = null;
 
-// Check URL hash for data
 function init() {
-    const hash = window.location.hash.slice(1);
-    if (hash) {
-        try {
-            const decoded = decodeURIComponent(hash);
-            parseAndRender(decoded);
-            document.getElementById('headerSubtitle').textContent = 'Live counting in progress';
-            return;
-        } catch(e) {}
+    // Get blob ID from URL: ?id=xxxxx
+    const params = new URLSearchParams(window.location.search);
+    blobId = params.get('id') || '';
+
+    if (blobId) {
+        document.getElementById('headerSubtitle').textContent = 'Auto-refreshing every 5 seconds...';
+        fetchFromCloud();
+        refreshTimer = setInterval(fetchFromCloud, 5000);
+    } else {
+        document.getElementById('headerSubtitle').textContent = 'No results link provided';
+        document.getElementById('resultsList').innerHTML = '<div class="empty-state"><div class="icon">&#9745;</div><p>Open the link shared by the tally person to see live results.</p></div>';
     }
-    // No data in URL — show paste box
-    document.getElementById('updateBar').style.display = 'flex';
-    document.getElementById('headerSubtitle').textContent = 'Paste tally data below to view results';
-    document.getElementById('resultsList').innerHTML = '<div class="empty-state"><div class="icon">&#9745;</div><p>Open the link shared by the tally person to see live results.</p></div>';
 }
 
-function loadData() {
-    const raw = document.getElementById('dataInput').value.trim();
-    if (!raw) { alert('Please paste tally data first.'); return; }
-    parseAndRender(raw);
-    document.getElementById('dataInput').value = '';
-}
-
-function parseAndRender(raw) {
-    try {
-        const jsonMatch = raw.match(/\{[^{}]*"v"\s*:\s*\[[^\]]*\][^{}]*\}/);
-        const jsonStr = jsonMatch ? jsonMatch[0] : raw;
-        const data = JSON.parse(jsonStr);
-
-        if (!data.v || !Array.isArray(data.v) || data.v.length !== CANDIDATES.length) {
-            throw new Error('Invalid');
-        }
-
-        currentVotes = data.v;
-        currentBallots = data.b || 0;
-        renderResults();
-
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        document.getElementById('lastUpdate').textContent = 'Last updated: ' + timeStr;
-    } catch(e) {
-        alert('Invalid data format. Make sure you pasted the complete tally data.');
-    }
+function fetchFromCloud() {
+    fetch('https://jsonblob.com/api/jsonBlob/' + blobId)
+        .then(r => r.json())
+        .then(data => {
+            if (data.v && Array.isArray(data.v) && data.v.length === CANDIDATES.length) {
+                currentVotes = data.v;
+                currentBallots = data.b || 0;
+                renderResults();
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                document.getElementById('lastUpdate').textContent = 'Live \u2022 Last updated: ' + timeStr;
+            }
+        })
+        .catch(() => {
+            document.getElementById('lastUpdate').textContent = 'Connection error, retrying...';
+        });
 }
 
 function renderResults() {
@@ -331,11 +316,6 @@ function renderResults() {
 
     list.innerHTML = html;
 }
-
-// Also allow Enter key
-document.getElementById('dataInput').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') loadData();
-});
 
 init();
 </script>
