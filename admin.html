@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Admin - Vote Review</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            padding-bottom: 40px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #16213e, #0f3460);
+            padding: 16px;
+            text-align: center;
+            border-bottom: 3px solid #f5a623;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        h1 { font-size: 18px; color: #f5a623; margin-bottom: 4px; }
+        .subtitle { font-size: 12px; color: #888; }
+
+        .stats-bar {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            padding: 12px;
+            background: #16213e;
+        }
+        .stat { text-align: center; }
+        .stat-val { font-size: 24px; font-weight: 700; color: #e94560; }
+        .stat-label { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+
+        .refresh-bar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            font-size: 12px;
+            color: #666;
+        }
+        .btn-refresh {
+            padding: 6px 14px;
+            border: none;
+            border-radius: 6px;
+            background: #0f3460;
+            color: #fff;
+            font-size: 12px;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+
+        .candidate-list { padding: 8px 12px; }
+
+        .cand-row {
+            background: #16213e;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .cand-row.top-21 { border-left: 3px solid #4ecca3; }
+        .cand-row.not-top { opacity: 0.7; }
+
+        .cand-rank {
+            font-size: 14px;
+            font-weight: 700;
+            color: #888;
+            min-width: 24px;
+            text-align: center;
+        }
+        .cand-row.top-21 .cand-rank { color: #4ecca3; }
+
+        .cand-info { flex: 1; min-width: 0; }
+        .cand-name {
+            font-size: 14px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .cand-bar { height: 4px; background: #333; border-radius: 2px; margin-top: 4px; }
+        .cand-bar-fill { height: 100%; border-radius: 2px; }
+        .cand-row.top-21 .cand-bar-fill { background: #4ecca3; }
+        .cand-row.not-top .cand-bar-fill { background: #e94560; }
+
+        .cand-votes {
+            font-size: 20px;
+            font-weight: 700;
+            min-width: 36px;
+            text-align: center;
+        }
+        .cand-row.top-21 .cand-votes { color: #4ecca3; }
+
+        .cand-btns {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .btn-adj {
+            width: 36px;
+            height: 28px;
+            border: none;
+            border-radius: 6px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            touch-action: manipulation;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-adj:active { transform: scale(0.9); }
+        .btn-plus { background: #4ecca3; color: #1a1a2e; }
+        .btn-minus { background: #e94560; color: #fff; }
+
+        .cutoff-line {
+            text-align: center;
+            padding: 6px;
+            font-size: 11px;
+            color: #e94560;
+            letter-spacing: 2px;
+            font-weight: 600;
+        }
+
+        .ballot-section {
+            padding: 12px;
+            text-align: center;
+        }
+        .ballot-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .ballot-label { font-size: 14px; color: #888; }
+        .ballot-val { font-size: 24px; font-weight: 700; color: #e94560; }
+        .btn-ballot {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+        .btn-ballot:active { transform: scale(0.95); }
+        .btn-ballot-plus { background: #4ecca3; color: #1a1a2e; }
+        .btn-ballot-minus { background: #e94560; color: #fff; }
+
+        .save-status {
+            text-align: center;
+            padding: 6px;
+            font-size: 13px;
+            color: #4ecca3;
+            display: none;
+        }
+
+        @media (max-width: 380px) {
+            .cand-name { font-size: 13px; }
+            .cand-votes { font-size: 18px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>Admin - Vote Review & Correct</h1>
+    <div class="subtitle">Adjust votes per candidate | Changes sync live</div>
+</div>
+
+<div class="stats-bar">
+    <div class="stat">
+        <div class="stat-val" id="statBallots">-</div>
+        <div class="stat-label">Ballots</div>
+    </div>
+    <div class="stat">
+        <div class="stat-val" id="statTotalVotes">-</div>
+        <div class="stat-label">Total Votes</div>
+    </div>
+</div>
+
+<div class="refresh-bar">
+    <span id="lastRefresh">Loading...</span>
+    <button class="btn-refresh" onclick="fetchData()">Refresh</button>
+</div>
+
+<div class="save-status" id="saveStatus">Saved!</div>
+
+<div class="ballot-section">
+    <div class="ballot-row">
+        <button class="btn-ballot btn-ballot-minus" onclick="adjustBallots(-1)">&minus;</button>
+        <div>
+            <div class="ballot-label">Ballot Count</div>
+            <div class="ballot-val" id="ballotCount">0</div>
+        </div>
+        <button class="btn-ballot btn-ballot-plus" onclick="adjustBallots(1)">+</button>
+    </div>
+</div>
+
+<div class="candidate-list" id="candidateList"></div>
+
+<script>
+const CANDIDATES = [
+    "Rahul Agarwal (Z Cleaner)",
+    "Deepak Jain",
+    "Akash Agarwal",
+    "Kunal Jalan",
+    "Saurabh Rungta",
+    "Pradip Kumar Agrawal",
+    "Prashant Dayama",
+    "Abhinav Dokania",
+    "Aman Sharma",
+    "Nitin Goyal",
+    "Vikash Kumar Agrawal",
+    "Ayush Agarwala",
+    "Deepak Gupta",
+    "Manish Agarwal (Real Estate)",
+    "Ankit Kumar Gupta",
+    "Puneet Goel",
+    "Varun Gupta",
+    "Archit Bazaz",
+    "Ajay Kumar Agarwal",
+    "Mayur Goel",
+    "Ankit Rungta",
+    "Manish Dalmia",
+    "Gowrav Agarwal (Utensils)",
+    "Dipak Bansal",
+    "Gaurav Agarwal (PVC Window)",
+    "Vatan Kumar Bansal",
+    "Pranjal Sarawagi",
+    "Deepa Choudhary",
+    "Puneet Agarwal",
+    "Nipun Sundarka",
+    "Vikas Patangi"
+];
+
+const SUPABASE_URL = 'https://qtjdwypnijtifbjsqicn.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_KXTHsoWE0NFKIiMa-WBOUQ_FA1yawAx';
+const HEADERS = {
+    'apikey': SUPABASE_KEY,
+    'Authorization': 'Bearer ' + SUPABASE_KEY
+};
+
+let votes = CANDIDATES.map(() => 0);
+let ballotCount = 0;
+let saveTimer = null;
+
+function fetchData() {
+    fetch(SUPABASE_URL + '/rest/v1/election_data?id=eq.1&select=votes,ballot_count', {
+        headers: HEADERS
+    })
+    .then(r => r.json())
+    .then(rows => {
+        if (rows.length > 0) {
+            votes = rows[0].votes;
+            ballotCount = rows[0].ballot_count;
+            render();
+            const t = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            document.getElementById('lastRefresh').textContent = 'Updated: ' + t;
+        }
+    })
+    .catch(() => {
+        document.getElementById('lastRefresh').textContent = 'Connection error';
+    });
+}
+
+function adjustVote(index, delta) {
+    votes[index] = Math.max(0, votes[index] + delta);
+    render();
+    debounceSave();
+}
+
+function adjustBallots(delta) {
+    ballotCount = Math.max(0, ballotCount + delta);
+    document.getElementById('ballotCount').textContent = ballotCount;
+    document.getElementById('statBallots').textContent = ballotCount;
+    debounceSave();
+}
+
+function debounceSave() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveToSupabase, 500);
+}
+
+function saveToSupabase() {
+    fetch(SUPABASE_URL + '/rest/v1/election_data?id=eq.1', {
+        method: 'PATCH',
+        headers: { ...HEADERS, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ votes: votes, ballot_count: ballotCount })
+    }).then(() => {
+        const el = document.getElementById('saveStatus');
+        el.style.display = 'block';
+        el.textContent = 'Saved!';
+        setTimeout(() => { el.style.display = 'none'; }, 1500);
+    }).catch(() => {
+        const el = document.getElementById('saveStatus');
+        el.style.display = 'block';
+        el.textContent = 'Save failed! Check connection.';
+        el.style.color = '#e94560';
+    });
+}
+
+function render() {
+    const totalVotes = votes.reduce((a, b) => a + b, 0);
+    document.getElementById('statBallots').textContent = ballotCount;
+    document.getElementById('statTotalVotes').textContent = totalVotes;
+    document.getElementById('ballotCount').textContent = ballotCount;
+
+    const sorted = CANDIDATES.map((name, i) => ({ name, sno: i + 1, idx: i, votes: votes[i] }))
+        .sort((a, b) => b.votes - a.votes || a.sno - b.sno);
+
+    const maxVotes = sorted.length > 0 ? sorted[0].votes : 0;
+    const el = document.getElementById('candidateList');
+
+    let html = '';
+    sorted.forEach((c, rank) => {
+        const isTop = rank < 21;
+        const pct = maxVotes > 0 ? (c.votes / maxVotes * 100) : 0;
+        html += `<div class="cand-row ${isTop ? 'top-21' : 'not-top'}">
+            <div class="cand-rank">${rank + 1}</div>
+            <div class="cand-info">
+                <div class="cand-name">${c.sno}. ${c.name.replace(/</g, '&lt;')}</div>
+                <div class="cand-bar"><div class="cand-bar-fill" style="width:${pct}%"></div></div>
+            </div>
+            <div class="cand-votes">${c.votes}</div>
+            <div class="cand-btns">
+                <button class="btn-adj btn-plus" onclick="adjustVote(${c.idx}, 1)">+</button>
+                <button class="btn-adj btn-minus" onclick="adjustVote(${c.idx}, -1)">&minus;</button>
+            </div>
+        </div>`;
+        if (rank === 20) html += '<div class="cutoff-line">- - - TOP 21 CUTOFF - - -</div>';
+    });
+    el.innerHTML = html;
+}
+
+// Load data
+fetchData();
+// Auto-refresh every 15 seconds
+setInterval(fetchData, 15000);
+</script>
+</body>
+</html>
