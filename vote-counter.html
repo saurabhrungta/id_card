@@ -312,43 +312,9 @@ let ballotCount = parseInt(localStorage.getItem('electionBallotCount') || '0');
 let currentPicks = []; // indices picked in current ballot
 let undoStack = [];
 
-let blobId = localStorage.getItem('electionBlobId') || '';
-
 function save() {
     localStorage.setItem('electionVotes', JSON.stringify(votes));
     localStorage.setItem('electionBallotCount', String(ballotCount));
-    syncToCloud();
-}
-
-function syncToCloud() {
-    const data = JSON.stringify({ v: votes, b: ballotCount });
-    if (blobId) {
-        fetch('https://jsonblob.com/api/jsonBlob/' + blobId, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: data
-        }).catch(() => {});
-    } else {
-        fetch('https://jsonblob.com/api/jsonBlob', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: data
-        }).then(r => {
-            const loc = r.headers.get('Location') || '';
-            blobId = loc.split('/').pop();
-            if (blobId) {
-                localStorage.setItem('electionBlobId', blobId);
-                updateShareInfo();
-            }
-        }).catch(() => {});
-    }
-}
-
-function updateShareInfo() {
-    const el = document.getElementById('shareLink');
-    if (el && blobId) {
-        el.textContent = 'Results link ready!';
-    }
 }
 
 // --- Vote Tab ---
@@ -475,13 +441,9 @@ function renderResults() {
 
 // --- Share on WhatsApp ---
 function shareWhatsApp() {
-    if (!blobId) {
-        syncToCloud();
-        alert('Setting up live link... try again in a moment.');
-        return;
-    }
-    const resultsUrl = 'https://saurabhrungta.github.io/id_card/results.html?id=' + blobId;
-    const text = 'Live Election Results:\n' + resultsUrl + '\n\n(Results update automatically every 5 seconds)';
+    const data = JSON.stringify({ v: votes, b: ballotCount });
+    const resultsUrl = 'https://saurabhrungta.github.io/id_card/results.html#' + encodeURIComponent(data);
+    const text = 'Election Results (Ballots: ' + ballotCount + '):\n' + resultsUrl;
     window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
 }
 
@@ -507,8 +469,7 @@ function resetElection() {
     renderResults();
 }
 
-// Init — create blob if not exists
-if (!blobId) syncToCloud();
+// Init
 updateBallotUI();
 renderResults();
 </script>
