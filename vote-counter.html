@@ -312,9 +312,26 @@ let ballotCount = parseInt(localStorage.getItem('electionBallotCount') || '0');
 let currentPicks = []; // indices picked in current ballot
 let undoStack = [];
 
+const SUPABASE_URL = 'https://qtjdwypnijtifbjsqicn.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_KXTHsoWE0NFKIiMa-WBOUQ_FA1yawAx';
+
 function save() {
     localStorage.setItem('electionVotes', JSON.stringify(votes));
     localStorage.setItem('electionBallotCount', String(ballotCount));
+    syncToSupabase();
+}
+
+function syncToSupabase() {
+    fetch(SUPABASE_URL + '/rest/v1/election_data?id=eq.1', {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_KEY,
+            'Authorization': 'Bearer ' + SUPABASE_KEY,
+            'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({ votes: votes, ballot_count: ballotCount })
+    }).catch(() => {});
 }
 
 // --- Vote Tab ---
@@ -441,9 +458,8 @@ function renderResults() {
 
 // --- Share on WhatsApp ---
 function shareWhatsApp() {
-    const data = JSON.stringify({ v: votes, b: ballotCount });
-    const resultsUrl = 'https://saurabhrungta.github.io/id_card/results.html#' + encodeURIComponent(data);
-    const text = 'Election Results (Ballots: ' + ballotCount + '):\n' + resultsUrl;
+    const resultsUrl = 'https://saurabhrungta.github.io/id_card/results.html';
+    const text = 'Live Election Results (auto-updates):\n' + resultsUrl;
     window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
 }
 
