@@ -300,12 +300,13 @@
 </div>
 
 <div id="shareView" class="share-view" style="display:none;">
-    <h2>Export Your Tally</h2>
-    <p>Copy this data and send it via WhatsApp/message to the person combining all tallies.</p>
+    <h2>Share Live Results</h2>
+    <p>Share the link below on WhatsApp. Anyone who opens it will see the current standings instantly.</p>
     <textarea id="exportData" readonly></textarea>
     <div class="share-btns">
-        <button class="btn btn-export" onclick="exportData()">Copy to Clipboard</button>
-        <button class="btn btn-whatsapp" onclick="shareWhatsApp()">Share WhatsApp</button>
+        <button class="btn btn-export" onclick="exportData()">Copy Data</button>
+        <button class="btn btn-whatsapp" onclick="shareWhatsApp()">Share on WhatsApp</button>
+        <button class="btn btn-export" onclick="copyResultsLink()" style="background:#e94560">Copy Link</button>
     </div>
 
     <hr class="divider">
@@ -504,7 +505,8 @@ function exportData() {
 
 function shareWhatsApp() {
     const data = JSON.stringify({ v: votes, b: ballotCount });
-    const text = 'Election Tally Data (Ballots: ' + ballotCount + '):\n' + data;
+    const resultsUrl = 'https://saurabhrungta.github.io/id_card/results.html#' + encodeURIComponent(data);
+    const text = 'Live Election Results (Ballots: ' + ballotCount + '):\n' + resultsUrl + '\n\nRaw data:\n' + data;
     window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
 }
 
@@ -540,6 +542,16 @@ function mergeData() {
         statusEl.className = 'merge-status error';
         statusEl.textContent = 'Invalid data. Make sure you pasted the complete exported tally.';
     }
+}
+
+function copyResultsLink() {
+    const data = JSON.stringify({ v: votes, b: ballotCount });
+    const url = 'https://saurabhrungta.github.io/id_card/results.html#' + encodeURIComponent(data);
+    navigator.clipboard.writeText(url).then(() => {
+        alert('Results link copied! Share it on WhatsApp - anyone who opens it will see live standings.');
+    }).catch(() => {
+        prompt('Copy this link:', url);
+    });
 }
 
 function prepareExport() {
