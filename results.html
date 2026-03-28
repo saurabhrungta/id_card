@@ -178,7 +178,7 @@
 
 <div class="header">
     <h1>Live Election Results</h1>
-    <div class="subtitle">Paste latest tally data to update</div>
+    <div class="subtitle" id="headerSubtitle">Loading...</div>
 </div>
 
 <div class="stats-bar">
@@ -196,22 +196,13 @@
     </div>
 </div>
 
-<div class="update-bar">
+<div class="update-bar" id="updateBar" style="display:none;">
     <input type="text" id="dataInput" placeholder="Paste tally data here...">
     <button onclick="loadData()">Update</button>
 </div>
-<div class="last-update" id="lastUpdate">No data loaded yet</div>
+<div class="last-update" id="lastUpdate"></div>
 
-<div id="resultsList" class="results-list">
-    <div class="empty-state">
-        <div class="icon">&#9745;</div>
-        <p>Waiting for tally data...</p>
-        <div class="hint">
-            The tally person will share data via WhatsApp.<br>
-            Paste it in the box above and tap <b>Update</b>.
-        </div>
-    </div>
-</div>
+<div id="resultsList" class="results-list"></div>
 
 <script>
 const CANDIDATES = [
@@ -258,8 +249,14 @@ function init() {
         try {
             const decoded = decodeURIComponent(hash);
             parseAndRender(decoded);
+            document.getElementById('headerSubtitle').textContent = 'Live counting in progress';
+            return;
         } catch(e) {}
     }
+    // No data in URL — show paste box
+    document.getElementById('updateBar').style.display = 'flex';
+    document.getElementById('headerSubtitle').textContent = 'Paste tally data below to view results';
+    document.getElementById('resultsList').innerHTML = '<div class="empty-state"><div class="icon">&#9745;</div><p>Open the link shared by the tally person to see live results.</p></div>';
 }
 
 function loadData() {
