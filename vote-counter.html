@@ -214,6 +214,44 @@
             cursor: pointer;
         }
 
+        /* Share/Merge view */
+        .share-view { padding: 16px; }
+        .share-view h2 { font-size: 16px; color: #e94560; margin-bottom: 8px; }
+        .share-view p { font-size: 13px; color: #888; margin-bottom: 10px; line-height: 1.4; }
+        .share-view textarea {
+            width: 100%;
+            height: 100px;
+            background: #16213e;
+            color: #eee;
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 13px;
+            font-family: monospace;
+            resize: vertical;
+            margin-bottom: 8px;
+        }
+        .share-view textarea:focus { outline: none; border-color: #4ecca3; }
+        .share-btns { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+        .share-btns .btn { flex: 1; min-width: 100px; }
+        .btn-export { background: #0f3460; color: #fff; }
+        .btn-merge { background: #4ecca3; color: #1a1a2e; }
+        .btn-whatsapp { background: #25d366; color: #fff; }
+        .merge-status {
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 8px;
+            font-size: 14px;
+            display: none;
+        }
+        .merge-status.success { display: block; background: #1a3a2a; color: #4ecca3; }
+        .merge-status.error { display: block; background: #3a1a1a; color: #e94560; }
+        .divider {
+            border: none;
+            border-top: 1px solid #333;
+            margin: 20px 0;
+        }
+
         @media (max-width: 380px) {
             .candidate-grid { grid-template-columns: 1fr 1fr; gap: 4px; padding: 6px; }
             .cand-btn { padding: 10px 4px; font-size: 12px; }
@@ -246,6 +284,7 @@
     <div class="tabs">
         <button class="tab active" id="tabVote" onclick="showTab('vote')">Vote</button>
         <button class="tab" id="tabResults" onclick="showTab('results')">Results</button>
+        <button class="tab" id="tabShare" onclick="showTab('share')">Share</button>
     </div>
 </div>
 
@@ -258,6 +297,26 @@
     <div class="reset-section">
         <button class="btn-danger" onclick="resetElection()">Reset Entire Election</button>
     </div>
+</div>
+
+<div id="shareView" class="share-view" style="display:none;">
+    <h2>Export Your Tally</h2>
+    <p>Copy this data and send it via WhatsApp/message to the person combining all tallies.</p>
+    <textarea id="exportData" readonly></textarea>
+    <div class="share-btns">
+        <button class="btn btn-export" onclick="exportData()">Copy to Clipboard</button>
+        <button class="btn btn-whatsapp" onclick="shareWhatsApp()">Share WhatsApp</button>
+    </div>
+
+    <hr class="divider">
+
+    <h2>Merge Another Tally</h2>
+    <p>Paste someone else's exported data below to add their vote counts to yours.</p>
+    <textarea id="importData" placeholder="Paste exported tally data here..."></textarea>
+    <div class="share-btns">
+        <button class="btn btn-merge" onclick="mergeData()">Merge Into My Tally</button>
+    </div>
+    <div class="merge-status" id="mergeStatus"></div>
 </div>
 
 <script>
@@ -430,13 +489,74 @@ function renderResults() {
     }).join('');
 }
 
+// --- Share/Merge ---
+function exportData() {
+    const data = JSON.stringify({ v: votes, b: ballotCount });
+    const box = document.getElementById('exportData');
+    box.value = data;
+    navigator.clipboard.writeText(data).then(() => {
+        alert('Copied to clipboard! Send this to the person merging tallies.');
+    }).catch(() => {
+        box.select();
+        alert('Auto-copy failed. Please manually select and copy the text above.');
+    });
+}
+
+function shareWhatsApp() {
+    const data = JSON.stringify({ v: votes, b: ballotCount });
+    const text = 'Election Tally Data (Ballots: ' + ballotCount + '):\n' + data;
+    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+}
+
+function mergeData() {
+    const statusEl = document.getElementById('mergeStatus');
+    const raw = document.getElementById('importData').value.trim();
+    if (!raw) {
+        statusEl.className = 'merge-status error';
+        statusEl.textContent = 'Please paste tally data first.';
+        return;
+    }
+    try {
+        // Extract JSON from the pasted text (might have WhatsApp message around it)
+        const jsonMatch = raw.match(/\{[^{}]*"v"\s*:\s*\[[^\]]*\][^{}]*\}/);
+        const jsonStr = jsonMatch ? jsonMatch[0] : raw;
+        const imported = JSON.parse(jsonStr);
+
+        if (!imported.v || !Array.isArray(imported.v) || imported.v.length !== CANDIDATES.length) {
+            throw new Error('Invalid data format');
+        }
+
+        const addedBallots = imported.b || 0;
+        imported.v.forEach((v, i) => { votes[i] += v; });
+        ballotCount += addedBallots;
+        save();
+
+        statusEl.className = 'merge-status success';
+        statusEl.textContent = 'Merged successfully! Added ' + addedBallots + ' ballot(s). Total now: ' + ballotCount + ' ballots.';
+        document.getElementById('importData').value = '';
+        updateBallotUI();
+        renderResults();
+    } catch (e) {
+        statusEl.className = 'merge-status error';
+        statusEl.textContent = 'Invalid data. Make sure you pasted the complete exported tally.';
+    }
+}
+
+function prepareExport() {
+    const data = JSON.stringify({ v: votes, b: ballotCount });
+    document.getElementById('exportData').value = data;
+}
+
 // --- Tabs ---
 function showTab(tab) {
     document.getElementById('tabVote').className = 'tab' + (tab === 'vote' ? ' active' : '');
     document.getElementById('tabResults').className = 'tab' + (tab === 'results' ? ' active' : '');
+    document.getElementById('tabShare').className = 'tab' + (tab === 'share' ? ' active' : '');
     document.getElementById('voteView').style.display = tab === 'vote' ? 'grid' : 'none';
     document.getElementById('resultsView').style.display = tab === 'results' ? 'block' : 'none';
+    document.getElementById('shareView').style.display = tab === 'share' ? 'block' : 'none';
     if (tab === 'results') renderResults();
+    if (tab === 'share') prepareExport();
 }
 
 // --- Reset ---
